@@ -37,16 +37,27 @@ namespace Community.Powertoys.Run.Plugin.BrowserSearch
                 DisplayDescription = "The name of the browser profile whose history will be loaded.\n" +
                                      "If empty, the history of ALL profiles will be loaded.",
                 PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Textbox
+            },
+            new()
+            {
+                Key = OnlyOpenTabs,
+                DisplayLabel = "Only search open tabs",
+                DisplayDescription = "When enabled, only the browser's currently open tabs are returned " +
+                                     "instead of its history. Selecting a result switches to that tab.",
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Checkbox,
+                Value = false
             }
         };
 
         private const string MaxResults = nameof(MaxResults);
         private const string SingleProfile = nameof(SingleProfile);
+        private const string OnlyOpenTabs = nameof(OnlyOpenTabs);
         private PluginInitContext? _context;
         private IBrowser? _defaultBrowser;
         private long _lastUpdateTickCount = -300L;
         private int _maxResults;
         private string? _selectedProfileName;
+        private bool _onlyOpenTabs;
 
         public void Init(PluginInitContext context)
         {
@@ -78,6 +89,8 @@ namespace Community.Powertoys.Run.Plugin.BrowserSearch
         public void UpdateSettings(PowerLauncherPluginSettings settings)
         {
             _maxResults = (int)(settings?.AdditionalOptions?.FirstOrDefault(x => x.Key == MaxResults)?.NumberValue ?? 15);
+
+            _onlyOpenTabs = settings?.AdditionalOptions?.FirstOrDefault(x => x.Key == OnlyOpenTabs)?.Value ?? false;
 
             PluginAdditionalOption? profile = settings?.AdditionalOptions?.FirstOrDefault(x => x.Key == SingleProfile);
             if (profile is not null && profile.TextValue?.Length > 0)
@@ -229,6 +242,11 @@ namespace Community.Powertoys.Run.Plugin.BrowserSearch
                 return [];
             }
 
+            if (_onlyOpenTabs)
+            {
+                return QueryOpenTabs(query);
+            }
+
             List<HistoryResult> history = _defaultBrowser.GetHistory();
             // Happens when the user only types our ActionKeyword ("b?" by default)
             if (string.IsNullOrEmpty(query.Search))
@@ -262,6 +280,45 @@ namespace Community.Powertoys.Run.Plugin.BrowserSearch
             }
 
             return results;
+        }
+
+        private List<Result> QueryOpenTabs(Query query)
+        {
+            List<OpenTab> tabs = BrowserTabEnumerator.GetAllOpenTabs(BrowserInfo.IconPath);
+
+            if (string.IsNullOrEmpty(query.Search))
+            {
+                return [.. tabs.Select(t => t.ToResult())];
+            }
+
+            List<Result> results = new(tabs.Count);
+            foreach (OpenTab tab in tabs)
+            {
+                int score = CalculateTitleScore(query.Search, tab.Title);
+                if (score <= 0)
+                {
+                    continue;
+                }
+
+                Result converted = tab.ToResult();
+                converted.Score = score;
+                results.Add(converted);
+            }
+
+            if (_maxResults != -1)
+            {
+                results.Sort((x, y) => y.Score.CompareTo(x.Score));
+                results = [.. results.Take(_maxResults)];
+            }
+
+            return results;
+        }
+
+        private int CalculateTitleScore(string query, string title)
+        {
+            return title.Contains(query, StringComparison.InvariantCultureIgnoreCase)
+                ? (int)(query.Length / (float)title.Length * 100f)
+                : 0;
         }
 
         private int CalculateScore(string query, string title, string url)

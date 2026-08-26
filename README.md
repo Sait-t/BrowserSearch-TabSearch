@@ -1,6 +1,13 @@
-# BrowserSearch
-This is a plugin for PowerToys Run.
+# BrowserSearch - Tab Search
+This is a fork of [TBM13/BrowserSearch](https://github.com/TBM13/BrowserSearch) for PowerToys Run.
 It reads your default browser's history, allowing you to search its entries and open their URL.
+
+## New in this fork
+* A new **"Only search open tabs"** option in the PowerToys Run settings. When enabled, `b?` lists
+  the browser's **currently open tabs** instead of its history, and selecting a result switches to
+  that tab. Open tabs are scanned across every running supported browser (not just the default one)
+  by walking the browser's UI Automation tree.
+* Retargeted to .NET 10 to match current PowerToys releases.
 
 <p align="center">
     <img src="./Screenshots/1.png" width="500"/>
@@ -31,7 +38,7 @@ Support for any other browser based on Chromium or Firefox can be added easily. 
 
 ## Install instructions
 * Exit PowerToys
-* Download latest version from [releases](https://github.com/TBM13/BrowserSearch/releases)
+* Download latest version from [releases](https://github.com/Sait-t/BrowserSearch-TabSearch/releases)
 * Extract zip
 * Move extracted folder `BrowserSearch` to `%LOCALAPPDATA%\Microsoft\PowerToys\PowerToys Run\Plugins\`
 * Start PowerToys
